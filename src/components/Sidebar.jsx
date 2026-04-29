@@ -3,6 +3,8 @@ import { LayoutDashboard, Search, User, Wallet, Calendar, MessageSquare, Power }
 import './Sidebar.css';
 import { useState, useEffect } from 'react';
 
+import Logo from './Logo';
+
 function Sidebar() {
   const [theme, setTheme] = useState('dark');
 
@@ -16,8 +18,11 @@ function Sidebar() {
 
   return (
     <div className="sidebar">
-      <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'center', padding: '1rem 0', marginBottom: '2rem' }}>
-        <img src="/logo.png" alt="SkillSwap Logo" style={{ width: '100%', maxWidth: '180px', objectFit: 'contain' }} onError={(e) => { e.target.onerror = null; e.target.style.display='none'; }} />
+      <div className="sidebar-header">
+        <div className="logo-icon">
+          <Power size={24} className="text-primary" />
+        </div>
+        <h2 style={{ margin: 0, fontSize: '1.5rem', background: 'linear-gradient(90deg, var(--primary-color), var(--accent-color))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 'bold' }}>SkillSwap</h2>
       </div>
       
       <nav className="sidebar-nav">
