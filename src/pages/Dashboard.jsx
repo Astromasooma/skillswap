@@ -4,8 +4,8 @@ import './Dashboard.css';
 function Dashboard() {
   return (
     <div className="dashboard-container">
-      <header className="page-header" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <img src="/logo.png" alt="SkillSwap" style={{ height: '60px', objectFit: 'contain' }} onError={(e) => { e.target.onerror = null; e.target.style.display='none'; }} />
+      <header className="page-header" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+        <img src="/logo.png" alt="SkillSwap Logo" style={{ height: '80px', objectFit: 'contain', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))' }} onError={(e) => { e.target.onerror = null; e.target.style.display='none'; }} />
         <div>
           <h1>Overview Interface</h1>
           <p>Welcome back to the grid. System functioning nominally.</p>

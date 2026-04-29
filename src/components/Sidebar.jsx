@@ -16,11 +16,8 @@ function Sidebar() {
 
   return (
     <div className="sidebar">
-      <div className="sidebar-header">
-        <div className="logo-icon">
-          <img src="/logo.png" alt="SkillSwap" style={{ width: '24px', height: '24px', objectFit: 'contain' }} onError={(e) => { e.target.onerror = null; e.target.style.display='none'; }} />
-        </div>
-        <h2>SkillSwap</h2>
+      <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'center', padding: '1rem 0', marginBottom: '2rem' }}>
+        <img src="/logo.png" alt="SkillSwap Logo" style={{ width: '100%', maxWidth: '180px', objectFit: 'contain' }} onError={(e) => { e.target.onerror = null; e.target.style.display='none'; }} />
       </div>
       
       <nav className="sidebar-nav">

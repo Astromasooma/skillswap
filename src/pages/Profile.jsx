@@ -1,11 +1,20 @@
-import { useState } from 'react';
-import { User, Camera, ShieldCheck, Upload } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { User, Camera, ShieldCheck, Upload, Image as ImageIcon } from 'lucide-react';
 
 function Profile() {
   const [photoMock, setPhotoMock] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [verified, setVerified] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPhotoMock(url);
+    }
+  };
 
   const generatePhoto = () => {
     setGenerating(true);
@@ -55,9 +64,21 @@ function Profile() {
                 <Camera size={48} className="text-main" opacity={0.5} />
               )}
             </div>
-            <button className="btn-outline" onClick={generatePhoto} disabled={generating} style={{ fontSize: '0.8rem' }}>
-              Nano Banana Pro (Generate)
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem', width: '100%', justifyContent: 'center', flexDirection: 'column' }}>
+              <input 
+                type="file" 
+                accept="image/*" 
+                ref={fileInputRef} 
+                style={{ display: 'none' }} 
+                onChange={handleFileUpload} 
+              />
+              <button className="btn-outline" onClick={() => fileInputRef.current.click()} style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                <Upload size={14} /> Upload Photo
+              </button>
+              <button className="btn-outline" onClick={generatePhoto} disabled={generating} style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                <ImageIcon size={14} /> Nano Banana Pro
+              </button>
+            </div>
           </div>
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
