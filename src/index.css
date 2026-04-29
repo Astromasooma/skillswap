@@ -1,0 +1,255 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Share+Tech+Mono&display=swap');
+
+:root {
+  /* Machine Theme - Dark Mode Default */
+  --bg-color: #0b0c10;
+  --surface-color: #1f2833;
+  --surface-highlight: #2c3945;
+  
+  /* Electric Purple */
+  --primary-color: #9d00ff;
+  --primary-hover: #b840ff;
+  --primary-glow: rgba(157, 0, 255, 0.4);
+  
+  /* Accents */
+  --accent-color: #00ffcc;
+  --text-main: #c5c6c7;
+  --text-heading: #ffffff;
+  
+  /* Adaptive Overlays */
+  --overlay-bg: rgba(0, 0, 0, 0.3);
+  --overlay-border: rgba(255, 255, 255, 0.1);
+  --input-bg: rgba(0, 0, 0, 0.2);
+  
+  /* Structural */
+  --border-radius: 12px;
+  --border-radius-lg: 20px;
+  --transition: all 0.3s ease;
+  --font-main: -apple-system, BlinkMacSystemFont, 'Roboto', 'Segoe UI', sans-serif;
+  --font-mono: 'Share Tech Mono', monospace;
+}
+
+[data-theme="light"] {
+  --bg-color: #f0f2f5;
+  --surface-color: #ffffff;
+  --surface-highlight: #e1e4e8;
+  --primary-color: #8a2be2;
+  --primary-hover: #9d00ff;
+  --primary-glow: rgba(138, 43, 226, 0.2);
+  --accent-color: #00997a;
+  --text-main: #4a4a4a;
+  --text-heading: #1a1a1a;
+  --overlay-bg: rgba(0, 0, 0, 0.04);
+  --overlay-border: rgba(0, 0, 0, 0.08);
+  --input-bg: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  line-height: 1.6;
+  overflow-x: hidden;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-mono);
+  color: var(--text-heading);
+  margin-bottom: 1rem;
+  letter-spacing: 0.5px;
+}
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+a:hover {
+  color: var(--primary-hover);
+  text-shadow: 0 0 8px var(--primary-glow);
+}
+
+button {
+  font-family: var(--font-mono);
+  cursor: pointer;
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: var(--transition);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: #fff;
+  box-shadow: 0 0 10px var(--primary-glow);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+  box-shadow: 0 0 20px var(--primary-glow);
+  transform: translateY(-2px);
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 1px solid var(--primary-color);
+  color: var(--primary-color);
+}
+
+.btn-outline:hover {
+  background-color: var(--primary-color);
+  color: #fff;
+  box-shadow: 0 0 15px var(--primary-glow);
+}
+
+.card {
+  background-color: var(--surface-color);
+  border-radius: var(--border-radius-lg);
+  padding: 1.5rem;
+  box-shadow: 0 4px 15px var(--overlay-bg);
+  border: 1px solid var(--overlay-border);
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+  opacity: 0;
+  transition: var(--transition);
+}
+
+.card:hover::before {
+  opacity: 1;
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: var(--surface-color);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--overlay-border);
+}
+
+[data-theme="light"] .glass {
+  background: var(--surface-color);
+  border: 1px solid var(--overlay-border);
+}
+
+/* Input Fields */
+input, textarea, select {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  background-color: var(--input-bg);
+  border: 1px solid var(--overlay-border);
+  border-radius: var(--border-radius);
+  color: var(--text-heading);
+  font-family: var(--font-main);
+  transition: var(--transition);
+}
+
+input:focus, textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+/* Layout */
+.app-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 250px;
+  background-color: var(--surface-color);
+  border-right: 1px solid var(--surface-highlight);
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+}
+
+/* Utility classes */
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: 0.5rem; }
+.gap-4 { gap: 1rem; }
+.mt-4 { margin-top: 1rem; }
+.mb-4 { margin-bottom: 1rem; }
+.text-accent { color: var(--accent-color); }
+.text-primary { color: var(--primary-color); }
+
+/* FullCalendar Customizations for Machine Theme */
+.fc {
+  font-family: var(--font-main);
+}
+.fc-theme-standard td, .fc-theme-standard th {
+  border-color: var(--surface-highlight) !important;
+}
+.fc-theme-standard .fc-scrollgrid {
+  border-color: var(--surface-highlight) !important;
+}
+.fc-button-primary {
+  background-color: var(--surface-highlight) !important;
+  border-color: var(--surface-highlight) !important;
+  color: var(--text-heading) !important;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+.fc-button-primary:not(:disabled).fc-button-active, .fc-button-primary:not(:disabled):active {
+  background-color: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 10px var(--primary-glow) !important;
+}
+.fc-day-today {
+  background-color: rgba(157, 0, 255, 0.1) !important;
+}
+.fc-event {
+  background-color: var(--primary-color) !important;
+  border: none !important;
+  box-shadow: 0 0 5px var(--primary-glow);
+  padding: 2px 4px;
+}
+.fc .fc-col-header-cell-cushion {
+  color: var(--text-heading);
+}
+.fc .fc-daygrid-day-number {
+  color: var(--text-main);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-color);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-highlight);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color);
+}
