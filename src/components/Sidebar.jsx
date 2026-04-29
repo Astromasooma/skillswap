@@ -18,7 +18,7 @@ function Sidebar() {
     <div className="sidebar">
       <div className="sidebar-header">
         <div className="logo-icon">
-          <Power size={24} className="text-primary" />
+          <img src="/logo.png" alt="SkillSwap" style={{ width: '24px', height: '24px', objectFit: 'contain' }} onError={(e) => { e.target.onerror = null; e.target.style.display='none'; }} />
         </div>
         <h2>SkillSwap</h2>
       </div>

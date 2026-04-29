@@ -6,13 +6,13 @@
   --surface-color: #1f2833;
   --surface-highlight: #2c3945;
   
-  /* Electric Purple */
-  --primary-color: #9d00ff;
-  --primary-hover: #b840ff;
-  --primary-glow: rgba(157, 0, 255, 0.4);
+  /* Brand Colors */
+  --primary-color: #ff6a00;
+  --primary-hover: #ff8c00;
+  --primary-glow: rgba(255, 106, 0, 0.4);
   
   /* Accents */
-  --accent-color: #00ffcc;
+  --accent-color: #0077ff;
   --text-main: #c5c6c7;
   --text-heading: #ffffff;
   
@@ -33,10 +33,10 @@
   --bg-color: #f0f2f5;
   --surface-color: #ffffff;
   --surface-highlight: #e1e4e8;
-  --primary-color: #8a2be2;
-  --primary-hover: #9d00ff;
-  --primary-glow: rgba(138, 43, 226, 0.2);
-  --accent-color: #00997a;
+  --primary-color: #e65c00;
+  --primary-hover: #ff6a00;
+  --primary-glow: rgba(230, 92, 0, 0.2);
+  --accent-color: #0055cc;
   --text-main: #4a4a4a;
   --text-heading: #1a1a1a;
   --overlay-bg: rgba(0, 0, 0, 0.04);

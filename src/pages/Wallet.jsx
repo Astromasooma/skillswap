@@ -10,7 +10,7 @@ function Wallet() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem' }}>
         <div className="card glass" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 2rem' }}>
-          <div style={{ background: 'rgba(157, 0, 255, 0.1)', padding: '1.5rem', borderRadius: '50%', marginBottom: '1rem', border: '1px solid var(--primary-color)', boxShadow: '0 0 20px var(--primary-glow)' }}>
+          <div style={{ background: 'rgba(255, 106, 0, 0.1)', padding: '1.5rem', borderRadius: '50%', marginBottom: '1rem', border: '1px solid var(--primary-color)', boxShadow: '0 0 20px var(--primary-glow)' }}>
             <WalletIcon size={48} className="text-primary" />
           </div>
           <h2 style={{ fontSize: '1rem', color: 'var(--text-main)', marginBottom: '0.5rem' }}>Current Balance</h2>
@@ -41,7 +41,7 @@ function Wallet() {
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderBottom: '1px solid var(--surface-highlight)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ background: 'rgba(157, 0, 255, 0.1)', padding: '0.5rem', borderRadius: '8px' }}>
+                <div style={{ background: 'rgba(255, 106, 0, 0.1)', padding: '0.5rem', borderRadius: '8px' }}>
                   <ArrowUpRight className="text-primary" />
                 </div>
                 <div>
