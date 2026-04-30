@@ -5,8 +5,9 @@ import { useState, useEffect } from 'react';
 
 import Logo from './Logo';
 
-function Sidebar() {
+function Sidebar({ onLogout }) {
   const [theme, setTheme] = useState('dark');
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -56,11 +57,27 @@ function Sidebar() {
         </NavLink>
       </nav>
 
-      <div className="sidebar-footer">
+      <div className="sidebar-footer" style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
         <button className="theme-icon-btn" onClick={toggleTheme} aria-label="Toggle Theme" title="Toggle Theme">
           {theme === 'dark' ? <Sun size={24} /> : <Moon size={24} />}
         </button>
+        <button className="theme-icon-btn" onClick={() => setShowLogoutModal(true)} aria-label="Logout" title="Logout" style={{ color: '#EA4335' }}>
+          <Power size={24} />
+        </button>
       </div>
+
+      {showLogoutModal && (
+        <div className="logout-modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div className="card glass" style={{ padding: '2rem', textAlign: 'center', maxWidth: '350px' }}>
+            <h3 style={{ marginBottom: '1rem' }}>Logging out</h3>
+            <p style={{ marginBottom: '1.5rem', color: 'var(--text-main)' }}>Do you want to save your password for next login?</p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button className="btn-outline" onClick={onLogout}>No</button>
+              <button className="btn-primary" onClick={onLogout}>Yes, Save</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,7 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Sidebar from './components/Sidebar';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useState } from 'react';
+import Layout from './components/Layout';
+import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
 import Search from './pages/Search';
 import Profile from './pages/Profile';
@@ -10,12 +12,26 @@ import Files from './pages/Files';
 import './index.css';
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+  };
+
   return (
     <Router>
-      <div className="app-container">
-        <Sidebar />
-        <main className="main-content">
-          <Routes>
+      <Routes>
+        {!isAuthenticated ? (
+          <>
+            <Route path="/login" element={<Auth onLogin={handleLogin} />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </>
+        ) : (
+          <Route element={<Layout onLogout={handleLogout} />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/search" element={<Search />} />
             <Route path="/profile" element={<Profile />} />
@@ -23,9 +39,10 @@ function App() {
             <Route path="/scheduler" element={<Scheduler />} />
             <Route path="/files" element={<Files />} />
             <Route path="/chat" element={<Chat />} />
-          </Routes>
-        </main>
-      </div>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        )}
+      </Routes>
     </Router>
   );
 }
