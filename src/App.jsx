@@ -6,6 +6,7 @@ import Profile from './pages/Profile';
 import Wallet from './pages/Wallet';
 import Scheduler from './pages/Scheduler';
 import Chat from './pages/Chat';
+import Files from './pages/Files';
 import './index.css';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/scheduler" element={<Scheduler />} />
+            <Route path="/files" element={<Files />} />
             <Route path="/chat" element={<Chat />} />
           </Routes>
         </main>

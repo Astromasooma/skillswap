@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Search, User, Wallet, Calendar, MessageSquare, Power } from 'lucide-react';
+import { LayoutDashboard, Search, User, Wallet, Calendar, MessageSquare, Power, Sun, Moon, FileText } from 'lucide-react';
 import './Sidebar.css';
 import { useState, useEffect } from 'react';
 
@@ -46,6 +46,10 @@ function Sidebar() {
           <Calendar size={20} />
           <span>Scheduler</span>
         </NavLink>
+        <NavLink to="/files" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+          <FileText size={20} />
+          <span>Files</span>
+        </NavLink>
         <NavLink to="/chat" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
           <MessageSquare size={20} />
           <span>Comms Line</span>
@@ -53,8 +57,8 @@ function Sidebar() {
       </nav>
 
       <div className="sidebar-footer">
-        <button className="btn-outline toggle-theme" onClick={toggleTheme}>
-          {theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'}
+        <button className="theme-icon-btn" onClick={toggleTheme} aria-label="Toggle Theme" title="Toggle Theme">
+          {theme === 'dark' ? <Sun size={24} /> : <Moon size={24} />}
         </button>
       </div>
     </div>
