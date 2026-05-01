@@ -84,11 +84,11 @@ function Profile() {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div>
               <label style={{ fontSize: '0.8rem', color: 'var(--text-main)', display: 'block', marginBottom: '0.25rem' }}>Handle</label>
-              <input type="text" defaultValue="NeoCoder" />
+              <input type="text" defaultValue="" placeholder="Enter your handle..." />
             </div>
             <div>
               <label style={{ fontSize: '0.8rem', color: 'var(--text-main)', display: 'block', marginBottom: '0.25rem' }}>Bio / Protocol</label>
-              <textarea rows="3" defaultValue="Full stack developer seeking to trade React skills for advanced UI/UX design training."></textarea>
+              <textarea rows="3" defaultValue="" placeholder="Enter your bio or skills to trade..."></textarea>
             </div>
             <button className="btn-primary" style={{ alignSelf: 'flex-start' }}>Update Matrix</button>
           </div>

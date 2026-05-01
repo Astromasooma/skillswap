@@ -1,29 +1,60 @@
-import React, { useState, useRef } from 'react';
-import { File as FileIcon, Download, Search } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { File as FileIcon, Download, Search, Loader2 } from 'lucide-react';
 
 function Files() {
-  const [files, setFiles] = useState([
-    { id: 1, name: 'Project_Brief_1.pdf', size: 2.4 * 1024 * 1024, url: '#' },
-    { id: 2, name: 'Design_Assets.zip', size: 15.2 * 1024 * 1024, url: '#' }
-  ]);
+  const [files, setFiles] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
+
+  const fetchFiles = async () => {
+    try {
+      const response = await fetch('/api/files');
+      const data = await response.json();
+      setFiles(data);
+    } catch (error) {
+      console.error('Failed to fetch files:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchFiles();
+  }, []);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const uploadedFiles = Array.from(e.target.files);
-    const newFiles = uploadedFiles.map(file => ({
-      id: Date.now() + Math.random(),
-      name: file.name,
-      size: file.size,
-      url: URL.createObjectURL(file),
-      fileObj: file
-    }));
-    setFiles(prev => [...newFiles, ...prev]);
-    // Reset input so the same file can be uploaded again if needed
+    if (uploadedFiles.length === 0) return;
+
+    setIsUploading(true);
+
+    for (const file of uploadedFiles) {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch('/api/files/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!response.ok) {
+          throw new Error('Upload failed');
+        }
+      } catch (error) {
+        console.error(`Failed to upload ${file.name}:`, error);
+        alert(`Failed to upload ${file.name}`);
+      }
+    }
+
+    // Refresh file list after uploads complete
+    await fetchFiles();
+    setIsUploading(false);
+    
+    // Reset input
     e.target.value = null;
   };
 
@@ -33,17 +64,34 @@ function Files() {
     else return (bytes / 1048576).toFixed(1) + ' MB';
   };
 
-  const handleDownload = (file) => {
-    if (file.url === '#') {
-      alert("This is a mockup file and cannot be downloaded.");
-      return;
+  const handleDownload = async (file) => {
+    try {
+      // Mockup fallback
+      if (file.url === '#') {
+        alert("This is a mockup file and cannot be downloaded.");
+        return;
+      }
+
+      // Fetch the signed URL from our backend
+      const response = await fetch(`/api/files/download/${file.id}`);
+      if (!response.ok) {
+        throw new Error('Failed to get download link');
+      }
+      
+      const data = await response.json();
+      
+      // Navigate to the signed URL to trigger native download
+      const a = document.createElement('a');
+      a.href = data.url;
+      // Note: The backend Signed URL explicitly sets responseDisposition to force a download
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Error downloading file. It may no longer exist in the cloud.');
     }
-    const a = document.createElement('a');
-    a.href = file.url;
-    a.download = file.name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
   };
 
   const filteredFiles = files.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -72,7 +120,14 @@ function Files() {
             style={{ display: 'none' }} 
             multiple 
           />
-          <button className="btn-primary" onClick={handleUploadClick}>Upload File</button>
+          <button className="btn-primary" onClick={handleUploadClick} disabled={isUploading}>
+            {isUploading ? (
+              <>
+                <Loader2 size={18} className="spin" style={{ marginRight: '0.5rem' }} /> 
+                Uploading...
+              </>
+            ) : 'Upload File'}
+          </button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>

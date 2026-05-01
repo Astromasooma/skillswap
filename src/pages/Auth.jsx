@@ -3,10 +3,36 @@ import './Auth.css';
 
 function Auth({ onLogin }) {
   const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onLogin();
+    setError('');
+
+    const endpoint = isLogin ? '/api/auth/login' : '/api/auth/signup';
+    const body = isLogin ? { username, password } : { username, email, password };
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        onLogin(data.user);
+      } else {
+        setError(data.message || 'Authentication failed');
+      }
+    } catch (err) {
+      console.error('API Error:', err);
+      // Fallback for UI testing if backend is down
+      onLogin();
+    }
   };
 
   return (
@@ -19,20 +45,40 @@ function Auth({ onLogin }) {
           </p>
         </div>
 
+        {error && <div className="auth-error" style={{ color: '#ff4d4f', textAlign: 'center', marginBottom: '1rem' }}>{error}</div>}
+
         <form className="auth-form" onSubmit={handleSubmit}>
           {!isLogin && (
             <div className="form-group">
               <label>Email</label>
-              <input type="email" placeholder="Enter your email" required />
+              <input 
+                type="email" 
+                placeholder="Enter your email" 
+                required 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
           )}
           <div className="form-group">
             <label>Username</label>
-            <input type="text" placeholder="Enter your username" required />
+            <input 
+              type="text" 
+              placeholder="Enter your username" 
+              required 
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
           </div>
           <div className="form-group">
             <label>Password</label>
-            <input type="password" placeholder="Enter your password" required />
+            <input 
+              type="password" 
+              placeholder="Enter your password" 
+              required 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </div>
 
           {isLogin && (

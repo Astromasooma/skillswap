@@ -6,10 +6,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import { Calendar as CalendarIcon } from 'lucide-react';
 
 function Scheduler() {
-  const events = [
-    { title: 'React Session w/ Jane', start: new Date().toISOString().split('T')[0] + 'T10:00:00', end: new Date().toISOString().split('T')[0] + 'T11:00:00' },
-    { title: 'CSS Layouts w/ Alex', start: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0] + 'T14:00:00', end: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0] + 'T15:00:00' }
-  ];
+  const events = [];
 
   return (
     <div className="scheduler-container" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
