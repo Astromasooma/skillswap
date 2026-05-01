@@ -19,13 +19,10 @@ function Sidebar({ onLogout }) {
 
   return (
     <div className="sidebar">
-      <div className="sidebar-header">
-        <div className="logo-icon">
-          <Power size={24} className="text-primary" />
-        </div>
-        <h2 style={{ margin: 0, fontSize: '1.5rem', background: 'linear-gradient(90deg, var(--primary-color), var(--accent-color))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 'bold' }}>SkillSwap</h2>
+      <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.5rem 1rem', marginBottom: '2.5rem' }}>
+        <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 'bold', background: 'linear-gradient(90deg, var(--primary-color), var(--accent-color))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '0.5px' }}>SkillSwap</h2>
       </div>
-      
+
       <nav className="sidebar-nav">
         <NavLink to="/" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'} end>
           <LayoutDashboard size={20} />
