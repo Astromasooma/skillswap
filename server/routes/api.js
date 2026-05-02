@@ -375,14 +375,19 @@ router.post('/chat/upload', upload.single('media'), async (req, res) => {
 // Send a message — stores conversationId for index-free querying
 router.post('/chat/send', async (req, res) => {
   try {
-    const { sender, receiver, text } = req.body;
+    const { sender, receiver, text, type = 'text' } = req.body;
     if (!sender || !receiver || !text) return res.status(400).json({ message: 'Missing fields' });
 
     const convId = getConvId(sender, receiver);
     const timestamp = Date.now();
 
-    const newMsg = { sender, receiver, text, timestamp, conversationId: convId };
+    const newMsg = { sender, receiver, text, type, timestamp, conversationId: convId };
     const docRef = await db.collection('messages').add(newMsg);
+
+    // Human-readable preview for media messages (don't store raw base64 in lastMessage)
+    let lastMessagePreview = text;
+    if (type === 'audio') lastMessagePreview = '🎤 Voice message';
+    else if (type === 'image') lastMessagePreview = '🖼️ Image';
 
     // Upsert conversation metadata + increment unread count for receiver
     const convRef = db.collection('conversations').doc(convId);
@@ -391,7 +396,7 @@ router.post('/chat/send', async (req, res) => {
 
     await convRef.set({
       participants: [sender, receiver].sort(),
-      lastMessage: text,
+      lastMessage: lastMessagePreview,
       lastSender: sender,
       timestamp,
       [`unreadFor_${receiver}`]: prevUnread + 1
@@ -403,6 +408,7 @@ router.post('/chat/send', async (req, res) => {
     res.status(500).json({ message: 'Internal Server Error' });
   }
 });
+
 
 // Mark conversation as read — resets unread count for the opener
 router.post('/chat/read/:partner', async (req, res) => {

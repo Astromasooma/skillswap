@@ -3,11 +3,21 @@ import { useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import {
   MessageSquare, Send, Search, UserCircle2, Phone, Video, Monitor,
-  MicOff, VideoOff, PhoneOff, Image, Mic, StopCircle, FileText, X
+  MicOff, VideoOff, PhoneOff, Image, Mic, StopCircle, FileText, X, ChevronLeft
 } from 'lucide-react';
 
 const socket = io(window.location.origin.replace('5173', '3001'));
 const ICE_SERVERS = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+function useWindowWidth() {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return width;
+}
 
 function Chat({ currentUser }) {
   const location = useLocation();
@@ -25,6 +35,11 @@ function Chat({ currentUser }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  // 'inbox' | 'chat' | 'transcriber'
+  const [mobilePanel, setMobilePanel] = useState('inbox');
+  const windowWidth = useWindowWidth();
+  const isMobile = windowWidth < 768;
+  const isTablet = windowWidth >= 768 && windowWidth < 1100;
 
   // Call state
   const [callState, setCallState] = useState(null);
@@ -380,6 +395,7 @@ function Chat({ currentUser }) {
     setSelectedUser(partner);
     markAsRead(partner);
     localStorage.setItem('lastChatSeen', Date.now().toString());
+    if (isMobile) setMobilePanel('chat');
   };
 
   const formatTime = (ts) => ts ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
@@ -429,9 +445,21 @@ function Chat({ currentUser }) {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '1rem', flex: 1, overflow: 'hidden', minHeight: 0 }}>
+      {/* Mobile panel tab switcher */}
+      {isMobile && (
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--surface-highlight)', marginBottom: '0.5rem', gap: '0.25rem' }}>
+          {[['inbox','Inbox',<MessageSquare size={14}/>],['chat','Chat',<Send size={14}/>],['transcriber','AI',<FileText size={14}/>]].map(([panel,label,icon])=>(
+            <button key={panel} onClick={()=>setMobilePanel(panel)}
+              style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:'0.3rem', padding:'0.5rem', fontSize:'0.78rem', borderRadius:'8px 8px 0 0', background: mobilePanel===panel ? 'var(--primary-color)' : 'transparent', color: mobilePanel===panel ? '#fff' : 'var(--text-main)', border:'none', borderBottom: mobilePanel===panel ? '2px solid var(--primary-color)' : '2px solid transparent', cursor:'pointer' }}>
+              {icon}{label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: '0.75rem', flex: 1, overflow: 'hidden', minHeight: 0 }}>
         {/* Inbox */}
-        <div className="card" style={{ width: '260px', flexShrink: 0, display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
+        <div className="card" style={{ width: isMobile ? '100%' : isTablet ? '200px' : '240px', flexShrink: 0, display: isMobile && mobilePanel !== 'inbox' ? 'none' : 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
           <div style={{ padding: '1rem', borderBottom: '1px solid var(--surface-highlight)' }}>
             <h3 style={{ margin: '0 0 0.75rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem' }}>
               <MessageSquare size={18} /> Inbox
@@ -468,11 +496,17 @@ function Chat({ currentUser }) {
           </div>
         </div>
 
-        {/* Chat thread OR active call — swaps inline so transcriber stays visible */}
-        <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden', background: (callState === 'active' || callState === 'calling') ? '#0a0a0a' : undefined }}>
+        {/* Chat thread OR active call */}
+        <div className="card" style={{ flex: 1, display: isMobile && mobilePanel !== 'chat' ? 'none' : 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden', background: (callState === 'active' || callState === 'calling') ? '#0a0a0a' : undefined }}>
           {(callState === 'active' || callState === 'calling') ? (
             /* ===== INLINE CALL UI ===== */
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.5rem', padding: '2rem' }}>
+              {/* Back button on mobile */}
+              {isMobile && (
+                <button onClick={() => setMobilePanel('inbox')} style={{ position:'absolute', top:'0.75rem', left:'0.75rem', background:'transparent', border:'none', color:'#ccc', cursor:'pointer', display:'flex', alignItems:'center', gap:'0.25rem', fontSize:'0.8rem' }}>
+                  <ChevronLeft size={16}/> Back
+                </button>
+              )}
               {/* Call status badge */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.06)', borderRadius: '999px', padding: '0.3rem 0.9rem', border: '1px solid rgba(255,255,255,0.1)' }}>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: callState === 'calling' ? '#facc15' : '#34A853', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
@@ -575,8 +609,8 @@ function Chat({ currentUser }) {
           )}
         </div>
 
-        {/* AI Transcriber panel — always visible, works side-by-side with calls */}
-        <div className="card" style={{ width: '240px', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* AI Transcriber panel */}
+        <div className="card" style={{ width: isMobile ? '100%' : isTablet ? '180px' : '220px', flexShrink: 0, display: isMobile && mobilePanel !== 'transcriber' ? 'none' : 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <h3 style={{ margin: '0 0 0.4rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem' }}>
             <FileText size={16} />
             AI Transcriber

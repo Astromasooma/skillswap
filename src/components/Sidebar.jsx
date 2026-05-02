@@ -80,15 +80,15 @@ function Sidebar({ onLogout, currentUser }) {
   return (
     <div className="sidebar">
       <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.5rem 1rem', marginBottom: '1.5rem' }}>
-        <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 'bold', background: 'linear-gradient(90deg, var(--primary-color), var(--accent-color))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '0.5px' }}>SkillSwap</h2>
+        <h2 className="sidebar-brand-text" style={{ margin: 0, fontSize: '1.4rem', fontWeight: 'bold', background: 'linear-gradient(90deg, var(--primary-color), var(--accent-color))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '0.5px' }}>SkillSwap</h2>
       </div>
 
       {currentUser && (
-        <div style={{ padding: '0.5rem 1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'var(--overlay-bg)', borderRadius: '8px', border: '1px solid var(--overlay-border)' }}>
+        <div className="sidebar-user-card" style={{ padding: '0.5rem 1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'var(--overlay-bg)', borderRadius: '8px', border: '1px solid var(--overlay-border)' }}>
           <div className="avatar" style={{ width: '32px', height: '32px', fontSize: '0.75rem', flexShrink: 0 }}>
             {currentUser.username?.substring(0, 2).toUpperCase()}
           </div>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-heading)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser.username}</span>
+          <span className="sidebar-user-name" style={{ fontSize: '0.85rem', color: 'var(--text-heading)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser.username}</span>
         </div>
       )}
 
