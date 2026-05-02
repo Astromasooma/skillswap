@@ -407,8 +407,11 @@ function Chat({ currentUser }) {
       background: isMe ? 'var(--primary-color)' : 'var(--overlay-bg)',
       padding: '0.65rem 1rem',
       borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-      maxWidth: '68%',
+      maxWidth: '85%',
       border: !isMe ? '1px solid var(--overlay-border)' : 'none',
+      overflowWrap: 'break-word',
+      wordBreak: 'break-word',
+      whiteSpace: 'pre-wrap'
     };
     return (
       <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
