@@ -348,6 +348,30 @@ router.post('/connections/reject/:id', async (req, res) => {
 // Helper: create a deterministic conversation ID for two users
 const getConvId = (a, b) => [a, b].sort().join('__');
 
+// Upload image or voice note to Firebase Storage and return a public URL
+router.post('/chat/upload', upload.single('media'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+
+    const timestamp = Date.now();
+    const safeName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const filename = `chat-media/${timestamp}_${safeName}`;
+    const fileRef = bucket.file(filename);
+
+    const stream = fileRef.createWriteStream({ metadata: { contentType: req.file.mimetype } });
+    stream.on('error', () => res.status(500).json({ message: 'Upload failed' }));
+    stream.on('finish', async () => {
+      await fileRef.makePublic();
+      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filename}`;
+      res.json({ success: true, url: publicUrl, type: req.file.mimetype });
+    });
+    stream.end(req.file.buffer);
+  } catch (error) {
+    console.error('Media upload error:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
 // Send a message — stores conversationId for index-free querying
 router.post('/chat/send', async (req, res) => {
   try {

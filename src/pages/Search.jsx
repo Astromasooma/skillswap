@@ -10,42 +10,55 @@ function Search({ currentUser }) {
   const [connectedUsers, setConnectedUsers] = useState(new Set());
   const [pendingUsers, setPendingUsers] = useState(new Set());
 
-  // Fetch users AND connection status in parallel so cards render with the correct button state immediately
-  const fetchAll = async () => {
-    if (!currentUser?.username) return;
+  // Fetch just the users list (no auth needed)
+  const fetchUsers = async () => {
     try {
       setIsLoading(true);
-      const [usersRes, acceptedRes] = await Promise.all([
-        fetch('/api/users'),
-        fetch(`/api/connections/accepted/${currentUser.username}`)
-      ]);
-
-      const usersData = await usersRes.json();
-      const acceptedData = await acceptedRes.json();
-
-      setUsers(Array.isArray(usersData) ? usersData : []);
-      setConnectedUsers(new Set(Array.isArray(acceptedData) ? acceptedData : []));
+      const res = await fetch('/api/users');
+      const data = await res.json();
+      setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Failed to load search data:', error);
+      console.error('Failed to load users:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Fetch accepted/pending connections (needs currentUser)
+  const fetchConnectionStatus = async () => {
+    if (!currentUser?.username) return;
+    try {
+      const acceptedRes = await fetch(`/api/connections/accepted/${currentUser.username}`);
+      const acceptedData = await acceptedRes.json();
+      setConnectedUsers(new Set(Array.isArray(acceptedData) ? acceptedData : []));
+    } catch (error) {
+      console.error('Failed to load connection status:', error);
+    }
+  };
+
+  // On mount and when currentUser changes, load both in parallel
   useEffect(() => {
-    fetchAll();
+    const loadAll = async () => {
+      setIsLoading(true);
+      await Promise.all([fetchUsers(), fetchConnectionStatus()]);
+      setIsLoading(false);
+    };
+    loadAll();
   }, [currentUser]);
 
   const handleSeedDatabase = async () => {
     try {
       const response = await fetch('/api/users/seed', { method: 'POST' });
+      const data = await response.json();
       if (response.ok) {
-        alert('Database seeded successfully!');
-        fetchAll();
+        alert(data.message || 'Database seeded successfully!');
+        await fetchUsers(); // reload grid — no auth dependency
+      } else {
+        alert(data.message || 'Seed failed.');
       }
     } catch (error) {
       console.error('Failed to seed:', error);
-      alert('Failed to seed database');
+      alert('Could not reach server. Is the backend running?');
     }
   };
 
