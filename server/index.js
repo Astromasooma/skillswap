@@ -33,15 +33,26 @@ const app = express();
 const httpServer = createServer(app);
 const PORT = process.env.PORT || 3001;
 
-// Socket.io for WebRTC signaling
-const io = new SocketIO(httpServer, {
+// Socket.io for WebRTC signaling and Real-time Chat
+export const io = new SocketIO(httpServer, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
 io.on('connection', (socket) => {
+  // Join a room for WebRTC signaling (per-conversation)
   socket.on('join-room', (roomId) => {
     socket.join(roomId);
   });
+
+  // Join a personal room for platform-wide notifications and chat alerts
+  socket.on('join-chat', (username) => {
+    if (username) {
+      socket.join(`chat_${username}`);
+      console.log(`User ${username} joined their personal notification room`);
+    }
+  });
+
+  // Signaling logic
   socket.on('offer', ({ roomId, offer }) => {
     socket.to(roomId).emit('offer', { offer, from: socket.id });
   });
@@ -51,19 +62,35 @@ io.on('connection', (socket) => {
   socket.on('ice-candidate', ({ roomId, candidate }) => {
     socket.to(roomId).emit('ice-candidate', { candidate });
   });
-  socket.on('call-request', ({ roomId, callerName, type }) => {
-    socket.to(roomId).emit('call-request', { callerName, type });
+
+  // Initial call request must go to the receiver's personal room
+  socket.on('call-request', ({ receiver, callerName, type, roomId }) => {
+    if (receiver) {
+      socket.to(`chat_${receiver}`).emit('call-request', { callerName, type, roomId });
+    }
   });
+
   socket.on('call-ended', ({ roomId }) => {
     socket.to(roomId).emit('call-ended');
   });
+
+  // Generic notification (for connection requests, etc)
+  socket.on('notify', ({ receiver, data }) => {
+    if (receiver) {
+      socket.to(`chat_${receiver}`).emit('notification', data);
+    }
+  });
 });
+
+
 
 app.use(cors());
 app.use(express.json());
+app.set('io', io);
 
 import apiRoutes from './routes/api.js';
 app.use('/api', apiRoutes);
+
 
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../dist')));

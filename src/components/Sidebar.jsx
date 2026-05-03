@@ -1,8 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Search, User, Users, Wallet, Calendar, MessageSquare, Power, Sun, Moon, FileText, Bell } from 'lucide-react';
+import { LayoutDashboard, Search, User, Users, Wallet, Calendar, MessageSquare, Power, Sun, Moon, FileText, Bell, Activity } from 'lucide-react';
 import './Sidebar.css';
 import { useState, useEffect } from 'react';
 import Logo from './Logo';
+import { io } from 'socket.io-client';
+
+const socket = io();
 
 function Sidebar({ onLogout, currentUser }) {
   const [theme, setTheme] = useState('dark');
@@ -14,51 +17,51 @@ function Sidebar({ onLogout, currentUser }) {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  // Poll for connection request notifications every 5 seconds
+  // Initial fetch
   useEffect(() => {
     if (!currentUser?.username) return;
-
-    const pollNotifications = async () => {
+    
+    // Fetch initial counts
+    const fetchCounts = async () => {
       try {
-        const res = await fetch(`/api/connections/${currentUser.username}`);
-        const data = await res.json();
-        setRequestCount(Array.isArray(data) ? data.length : 0);
-      } catch (err) {
-        // silently fail
-      }
-    };
+        const connRes = await fetch(`/api/connections/${currentUser.username}`);
+        const conns = await connRes.json();
+        setRequestCount(conns.length);
 
-    pollNotifications();
-    const interval = setInterval(pollNotifications, 5000);
-    return () => clearInterval(interval);
-  }, [currentUser]);
-
-  // Poll for unread chat messages every 5 seconds
-  useEffect(() => {
-    if (!currentUser?.username) return;
-
-    const pollUnread = async () => {
-      try {
         const lastSeen = localStorage.getItem('lastChatSeen') || '0';
-        const res = await fetch(`/api/chat/unread/${currentUser.username}?since=${lastSeen}`);
-        const data = await res.json();
-        setUnreadMsgCount(data.count || 0);
-      } catch (err) {
-        // silently fail
-      }
+        const unreadRes = await fetch(`/api/chat/unread/${currentUser.username}?since=${lastSeen}`);
+        const unreadData = await unreadRes.json();
+        setUnreadMsgCount(unreadData.count || 0);
+      } catch (err) {}
     };
+    fetchCounts();
 
-    pollUnread();
-    const interval = setInterval(pollUnread, 5000);
-    return () => clearInterval(interval);
+    // Socket listeners for real-time updates
+    socket.emit('join-chat', currentUser.username);
+
+    socket.on('new-message', (msg) => {
+      // If we receive a message and we are not on the chat page, or looking at another user
+      setUnreadMsgCount(prev => prev + 1);
+    });
+
+    socket.on('notification', (data) => {
+      if (data.type === 'connection_request') {
+        setRequestCount(prev => prev + 1);
+      }
+    });
+
+    return () => {
+      socket.off('new-message');
+      socket.off('notification');
+    };
   }, [currentUser]);
-
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
   const Badge = ({ count }) => {
     if (!count || count === 0) return null;
+
     return (
       <span style={{
         background: '#EA4335',
@@ -94,8 +97,8 @@ function Sidebar({ onLogout, currentUser }) {
 
       <nav className="sidebar-nav">
         <NavLink to="/" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'} end>
-          <LayoutDashboard size={18} />
-          <span>Dashboard</span>
+          <Activity size={18} />
+          <span>Overview</span>
         </NavLink>
         <NavLink to="/search" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
           <Search size={18} />
@@ -118,16 +121,13 @@ function Sidebar({ onLogout, currentUser }) {
           <Calendar size={18} />
           <span>Scheduler</span>
         </NavLink>
-        <NavLink to="/files" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
-          <FileText size={18} />
-          <span>Files</span>
-        </NavLink>
         <NavLink to="/chat" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
           <MessageSquare size={18} />
           <span>Comms Line</span>
           <Badge count={unreadMsgCount} />
         </NavLink>
       </nav>
+
 
       <div className="sidebar-footer" style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
         <button className="theme-icon-btn" onClick={toggleTheme} aria-label="Toggle Theme" title="Toggle Theme">

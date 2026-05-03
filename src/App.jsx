@@ -2,13 +2,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useState } from 'react';
 import Layout from './components/Layout';
 import Auth from './pages/Auth';
-import Dashboard from './pages/Dashboard';
+import Overview from './pages/Overview';
 import Search from './pages/Search';
 import Profile from './pages/Profile';
 import Wallet from './pages/Wallet';
 import Scheduler from './pages/Scheduler';
 import Chat from './pages/Chat';
-import Files from './pages/Files';
 import Connections from './pages/Connections';
 import './index.css';
 
@@ -47,13 +46,12 @@ function App() {
           </>
         ) : (
           <Route element={<Layout onLogout={handleLogout} currentUser={currentUser} />}>
-            <Route path="/" element={<Dashboard currentUser={currentUser} />} />
+            <Route path="/" element={<Overview currentUser={currentUser} />} />
             <Route path="/search" element={<Search currentUser={currentUser} />} />
             <Route path="/connections" element={<Connections currentUser={currentUser} />} />
             <Route path="/profile" element={<Profile currentUser={currentUser} />} />
             <Route path="/wallet" element={<Wallet currentUser={currentUser} />} />
             <Route path="/scheduler" element={<Scheduler currentUser={currentUser} />} />
-            <Route path="/files" element={<Files currentUser={currentUser} />} />
             <Route path="/chat" element={<Chat currentUser={currentUser} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
@@ -62,5 +60,6 @@ function App() {
     </Router>
   );
 }
+
 
 export default App;

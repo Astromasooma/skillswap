@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search as SearchIcon, Filter, Stethoscope, Calculator, Palette, User as UserIcon, MessageSquare, UserCheck } from 'lucide-react';
+import { Search as SearchIcon, Filter, User as UserIcon, MessageSquare, UserCheck, Eye, GraduationCap, Briefcase, Clock, DollarSign, X, FileText } from 'lucide-react';
+import { io } from 'socket.io-client';
+
+const socket = io();
+
 
 function Search({ currentUser }) {
   const navigate = useNavigate();
@@ -8,9 +12,8 @@ function Search({ currentUser }) {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [connectedUsers, setConnectedUsers] = useState(new Set());
-  const [pendingUsers, setPendingUsers] = useState(new Set());
+  const [selectedProfile, setSelectedProfile] = useState(null);
 
-  // Fetch just the users list (no auth needed)
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
@@ -24,7 +27,6 @@ function Search({ currentUser }) {
     }
   };
 
-  // Fetch accepted/pending connections (needs currentUser)
   const fetchConnectionStatus = async () => {
     if (!currentUser?.username) return;
     try {
@@ -36,116 +38,45 @@ function Search({ currentUser }) {
     }
   };
 
-  // On mount and when currentUser changes, load both in parallel
   useEffect(() => {
-    const loadAll = async () => {
-      setIsLoading(true);
-      await Promise.all([fetchUsers(), fetchConnectionStatus()]);
-      setIsLoading(false);
-    };
-    loadAll();
+    fetchUsers();
+    fetchConnectionStatus();
   }, [currentUser]);
 
-  const handleSeedDatabase = async () => {
-    try {
-      const response = await fetch('/api/users/seed', { method: 'POST' });
-      const data = await response.json();
-      if (response.ok) {
-        alert(data.message || 'Database seeded successfully!');
-        await fetchUsers(); // reload grid — no auth dependency
-      } else {
-        alert(data.message || 'Seed failed.');
-      }
-    } catch (error) {
-      console.error('Failed to seed:', error);
-      alert('Could not reach server. Is the backend running?');
+  const handleAction = async (targetUsername, type) => {
+    if (!currentUser) {
+      navigate('/auth');
+      return;
     }
-  };
-
-  const getCategoryIcon = (category) => {
-    switch (category?.toLowerCase()) {
-      case 'medical': return <Stethoscope size={18} />;
-      case 'maths': return <Calculator size={18} />;
-      case 'arts': return <Palette size={18} />;
-      default: return <UserIcon size={18} />;
-    }
-  };
-
-  const handleConnect = async (targetUsername) => {
     try {
       const res = await fetch('/api/connections/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sender: currentUser?.username, receiver: targetUsername })
+        body: JSON.stringify({ sender: currentUser.username, receiver: targetUsername, type })
       });
       if (res.ok) {
-        setPendingUsers(prev => new Set([...prev, targetUsername]));
-        alert(`Connection request sent to ${targetUsername}!`);
-      } else {
-        alert('Failed to send request.');
+        socket.emit('notify', { receiver: targetUsername, data: { type: 'connection_request', from: currentUser.username } });
+        alert(`${type.toUpperCase()} request sent to ${targetUsername}!`);
       }
     } catch (err) {
       console.error(err);
     }
   };
 
+
   const filteredUsers = users.filter(user =>
     user.username !== currentUser?.username && (
       (user.username && user.username.toLowerCase().includes(query.toLowerCase())) ||
       (user.offers && user.offers.toLowerCase().includes(query.toLowerCase())) ||
-      (user.category && user.category.toLowerCase().includes(query.toLowerCase()))
+      (user.occupation && user.occupation.toLowerCase().includes(query.toLowerCase()))
     )
   );
 
-  const getActionButton = (user) => {
-    const isConnected = connectedUsers.has(user.username);
-    const isPending = pendingUsers.has(user.username);
-
-    if (isConnected) {
-      return (
-        <button
-          className="btn-primary"
-          style={{ marginTop: 'auto', padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: 'var(--accent-color)', borderColor: 'var(--accent-color)', color: '#000' }}
-          onClick={() => navigate('/chat', { state: { targetUser: user.username } })}
-        >
-          <MessageSquare size={16} /> Chat
-        </button>
-      );
-    }
-
-    if (isPending) {
-      return (
-        <button
-          className="btn-outline"
-          style={{ marginTop: 'auto', padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', opacity: 0.6, cursor: 'not-allowed' }}
-          disabled
-        >
-          <UserCheck size={16} /> Request Sent
-        </button>
-      );
-    }
-
-    return (
-      <button
-        className="btn-primary"
-        style={{ marginTop: 'auto', padding: '0.5rem' }}
-        onClick={() => handleConnect(user.username)}
-      >
-        Connect
-      </button>
-    );
-  };
-
   return (
-    <div className="search-container" style={{ maxWidth: '1000px' }}>
-      <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h1>Global Network Search</h1>
-          <p>Find your next skill swap across diverse disciplines.</p>
-        </div>
-        <button onClick={handleSeedDatabase} className="btn-outline" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
-          Seed Mock Data to Cloud
-        </button>
+    <div className="search-container" style={{ maxWidth: '1200px' }}>
+      <header className="page-header">
+        <h1>Global Network Search</h1>
+        <p>Discover industry experts and trade skills across the grid.</p>
       </header>
 
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
@@ -153,55 +84,120 @@ function Search({ currentUser }) {
           <SearchIcon style={{ position: 'absolute', top: '50%', left: '1rem', transform: 'translateY(-50%)', color: 'var(--text-main)' }} size={20} />
           <input
             type="text"
-            placeholder="Search by name, skill, or field (e.g. Maths, Arts, Medical)..."
+            placeholder="Search by name, occupation, or skill..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             style={{ paddingLeft: '3rem' }}
           />
         </div>
-        <button className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Filter size={18} /> Filters
-        </button>
       </div>
 
       {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-main)' }}>Loading network nodes...</div>
+        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-main)' }}>Syncing nodes...</div>
       ) : (
-        <div className="search-results" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+        <div className="search-results" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
           {filteredUsers.map(user => (
-            <div key={user.id} className="card glass" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div key={user.id} className="card glass" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div className="avatar" style={{ width: '40px', height: '40px', fontSize: '0.9rem' }}>
-                    {user.username?.substring(0, 2).toUpperCase()}
-                  </div>
+                  <div className="avatar" style={{ width: '50px', height: '50px' }}>{user.username?.substring(0, 2).toUpperCase()}</div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{user.username}</h3>
-                    {connectedUsers.has(user.username) && (
-                      <span style={{ fontSize: '0.7rem', color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                        <UserCheck size={12} /> Connected
-                      </span>
-                    )}
+                    <h3 style={{ margin: 0, fontSize: '1.2rem' }}>{user.username}</h3>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--primary-color)', fontWeight: 'bold' }}>{user.occupation}</div>
                   </div>
                 </div>
-                {user.category && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--primary-color)', fontSize: '0.8rem', background: 'var(--overlay-bg)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-                    {getCategoryIcon(user.category)} {user.category}
-                  </div>
-                )}
+                <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--accent-color)' }}>
+                  ${user.rates}<span style={{ fontSize: '0.7rem', opacity: 0.7 }}>/hr</span>
+                </div>
               </div>
-              <div style={{ fontSize: '0.9rem' }}>
-                <p style={{ margin: '0 0 0.5rem 0', color: 'var(--text-main)' }}><strong style={{ color: 'var(--accent-color)' }}>Offers:</strong> {user.offers || 'Not specified'}</p>
-                <p style={{ margin: 0, color: 'var(--text-main)' }}><strong style={{ color: 'var(--text-heading)' }}>Needs:</strong> {user.needs || 'Not specified'}</p>
+
+              <div style={{ fontSize: '0.9rem', flex: 1 }}>
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <strong style={{ display: 'block', color: 'var(--text-heading)', marginBottom: '0.25rem', fontSize: '0.75rem', textTransform: 'uppercase' }}>Offers</strong>
+                  <div style={{ color: 'var(--text-main)' }}>{user.offers}</div>
+                </div>
+                <div>
+                  <strong style={{ display: 'block', color: 'var(--text-heading)', marginBottom: '0.25rem', fontSize: '0.75rem', textTransform: 'uppercase' }}>Needs</strong>
+                  <div style={{ color: 'var(--text-main)' }}>{user.needs}</div>
+                </div>
               </div>
-              {getActionButton(user)}
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginTop: '1rem' }}>
+                <button className="btn-outline" style={{ padding: '0.5rem', fontSize: '0.8rem' }} onClick={() => setSelectedProfile(user)}>
+                  <Eye size={14} /> View
+                </button>
+                <button className="btn-primary" style={{ padding: '0.5rem', fontSize: '0.8rem' }} onClick={() => handleAction(user.username, 'learn')}>
+                  <GraduationCap size={14} /> Learn
+                </button>
+                <button className="btn-primary" style={{ padding: '0.5rem', fontSize: '0.8rem', background: '#34A853', borderColor: '#34A853' }} onClick={() => handleAction(user.username, 'teach')}>
+                  <Briefcase size={14} /> Teach
+                </button>
+              </div>
             </div>
           ))}
-          {filteredUsers.length === 0 && (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem', color: 'var(--text-main)' }}>
-              No matching nodes found on the grid.
+        </div>
+      )}
+
+      {/* Detailed View Modal */}
+      {selectedProfile && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '1rem' }}>
+          <div className="card glass" style={{ width: '100%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', position: 'relative', padding: '2.5rem' }}>
+            <button style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }} onClick={() => setSelectedProfile(null)}>
+              <X size={24} />
+            </button>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', marginBottom: '2.5rem' }}>
+              <div className="avatar" style={{ width: '100px', height: '100px', fontSize: '2rem' }}>{selectedProfile.username?.substring(0, 2).toUpperCase()}</div>
+              <div>
+                <h2 style={{ fontSize: '2rem', margin: '0 0 0.25rem 0' }}>{selectedProfile.username}</h2>
+                <div style={{ color: 'var(--primary-color)', fontSize: '1.1rem', fontWeight: '600' }}>{selectedProfile.occupation}</div>
+                <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
+                    <DollarSign size={18} className="text-primary" /> <strong>${selectedProfile.rates}/hr</strong>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
+                    <Clock size={18} className="text-primary" /> <strong>{selectedProfile.availability}</strong>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2.5rem' }}>
+              <div className="card" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                <h4 style={{ margin: '0 0 1rem 0', color: 'var(--accent-color)', textTransform: 'uppercase', letterSpacing: '1px' }}>Skill Offers</h4>
+                <p style={{ margin: 0, lineHeight: '1.6' }}>{selectedProfile.offers}</p>
+              </div>
+              <div className="card" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                <h4 style={{ margin: '0 0 1rem 0', color: 'var(--text-heading)', textTransform: 'uppercase', letterSpacing: '1px' }}>Learning Needs</h4>
+                <p style={{ margin: 0, lineHeight: '1.6' }}>{selectedProfile.needs}</p>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '2rem' }}>
+              <h4 style={{ margin: '0 0 1.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FileText size={20} className="text-primary" /> Portfolio Documents
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '1rem' }}>
+                {selectedProfile.portfolio?.length > 0 ? selectedProfile.portfolio.map((file, idx) => (
+                  <a key={idx} href={file.url} target="_blank" rel="noreferrer" className="card glass" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', padding: '1rem', textDecoration: 'none', color: 'inherit' }}>
+                    <FileText size={32} className="text-primary" />
+                    <span style={{ fontSize: '0.75rem', textAlign: 'center' }}>{file.name}</span>
+                  </a>
+                )) : (
+                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', opacity: 0.5, padding: '2rem', background: 'rgba(0,0,0,0.2)', borderRadius: '12px' }}>No documents uploaded yet.</div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button className="btn-primary" style={{ flex: 1, padding: '1rem' }} onClick={() => { handleAction(selectedProfile.username, 'learn'); setSelectedProfile(null); }}>
+                Request to Learn
+              </button>
+              <button className="btn-primary" style={{ flex: 1, padding: '1rem', background: '#34A853', borderColor: '#34A853' }} onClick={() => { handleAction(selectedProfile.username, 'teach'); setSelectedProfile(null); }}>
+                Request to Teach
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -209,5 +205,6 @@ function Search({ currentUser }) {
 }
 
 export default Search;
+
 
 

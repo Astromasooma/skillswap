@@ -1,7 +1,11 @@
 import express from 'express';
 import multer from 'multer';
 import bcrypt from 'bcrypt';
+import Stripe from 'stripe';
 import { db, bucket } from '../index.js';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_51TSkNDDXbv271WTLN9Lhi6AM1vOMBFLQj4WnF74Hq1gAPUTxYJparzT8GAQq0gZQHQc4B3ArgTJxYYqk07UoCACa00gR6jeg6h');
+
 
 const router = express.Router();
 
@@ -33,7 +37,7 @@ router.post('/auth/signup', async (req, res) => {
     // Check if user exists
     const usersRef = db.collection('users');
     const snapshot = await usersRef.where('email', '==', email).get();
-    
+
     if (!snapshot.empty) {
       return res.status(400).json({ success: false, message: 'User with this email already exists' });
     }
@@ -42,14 +46,21 @@ router.post('/auth/signup', async (req, res) => {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Save to Firestore
     const newUser = {
       username,
       email,
       password: hashedPassword,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      balance: 0,
+      occupation: '',
+      offers: '',
+      needs: '',
+      rates: 0,
+      availability: '',
+      portfolio: []
     };
-    
+
+
     const docRef = await usersRef.add(newUser);
 
     res.json({ success: true, message: 'User registered successfully', user: { id: docRef.id, username, email } });
@@ -70,7 +81,7 @@ router.post('/auth/login', async (req, res) => {
     const usersRef = db.collection('users');
     // We allow login with either username or email for flexibility
     let snapshot = await usersRef.where('username', '==', username).get();
-    
+
     if (snapshot.empty) {
       snapshot = await usersRef.where('email', '==', username).get();
     }
@@ -85,10 +96,10 @@ router.post('/auth/login', async (req, res) => {
     const isMatch = await bcrypt.compare(password, userData.password);
 
     if (isMatch) {
-      res.json({ 
-        success: true, 
-        message: 'Logged in successfully', 
-        user: { id: userDoc.id, username: userData.username, email: userData.email } 
+      res.json({
+        success: true,
+        message: 'Logged in successfully',
+        user: { id: userDoc.id, username: userData.username, email: userData.email }
       });
     } else {
       res.status(401).json({ success: false, message: 'Invalid credentials' });
@@ -96,112 +107,6 @@ router.post('/auth/login', async (req, res) => {
   } catch (error) {
     console.error('Login Error:', error);
     res.status(500).json({ success: false, message: 'Internal Server Error' });
-  }
-});
-
-// ==========================================
-// FILE REPOSITORY
-// ==========================================
-
-// Get all files metadata
-router.get('/files', async (req, res) => {
-  try {
-    const filesRef = db.collection('files');
-    const snapshot = await filesRef.orderBy('uploadedAt', 'desc').get();
-    
-    const filesList = [];
-    snapshot.forEach(doc => {
-      filesList.push({ id: doc.id, ...doc.data() });
-    });
-
-    res.json(filesList);
-  } catch (error) {
-    console.error('Error fetching files:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-
-// Upload a new file
-router.post('/files/upload', upload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
-
-    const timestamp = Date.now();
-    const uniqueFilename = `${timestamp}_${req.file.originalname}`;
-    const fileUpload = bucket.file(uniqueFilename);
-
-    // Create a write stream to upload the file to Firebase Storage
-    const stream = fileUpload.createWriteStream({
-      metadata: {
-        contentType: req.file.mimetype,
-      },
-    });
-
-    stream.on('error', (err) => {
-      console.error('Upload error:', err);
-      res.status(500).json({ message: 'Error uploading file to storage' });
-    });
-
-    stream.on('finish', async () => {
-      // Once uploaded, save metadata to Firestore
-      const fileMetadata = {
-        name: req.file.originalname,
-        storageName: uniqueFilename,
-        size: req.file.size,
-        mimetype: req.file.mimetype,
-        uploadedAt: new Date().toISOString()
-      };
-
-      const docRef = await db.collection('files').add(fileMetadata);
-      
-      res.json({
-        message: 'File uploaded successfully',
-        file: { id: docRef.id, ...fileMetadata }
-      });
-    });
-
-    // End the stream with the buffer
-    stream.end(req.file.buffer);
-
-  } catch (error) {
-    console.error('Upload Route Error:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-
-// Generate a Signed URL for downloading
-router.get('/files/download/:id', async (req, res) => {
-  try {
-    const fileId = req.params.id;
-    const doc = await db.collection('files').doc(fileId).get();
-
-    if (!doc.exists) {
-      return res.status(404).json({ message: 'File not found' });
-    }
-
-    const fileData = doc.data();
-    const storageFile = bucket.file(fileData.storageName);
-
-    // Check if file exists in storage
-    const [exists] = await storageFile.exists();
-    if (!exists) {
-      return res.status(404).json({ message: 'File not found in storage bucket' });
-    }
-
-    // Generate a signed URL valid for 2 hours
-    const [url] = await storageFile.getSignedUrl({
-      version: 'v4',
-      action: 'read',
-      expires: Date.now() + 2 * 60 * 60 * 1000, // 2 hours
-      responseDisposition: `attachment; filename="${fileData.name}"` // Force download behavior
-    });
-
-    res.json({ url });
-  } catch (error) {
-    console.error('Download Route Error:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
   }
 });
 
@@ -214,7 +119,7 @@ router.get('/users', async (req, res) => {
   try {
     const usersRef = db.collection('users');
     const snapshot = await usersRef.get();
-    
+
     const usersList = [];
     snapshot.forEach(doc => {
       usersList.push({ id: doc.id, ...doc.data() });
@@ -227,67 +132,83 @@ router.get('/users', async (req, res) => {
   }
 });
 
-// Seed mock users into the database (one-time use to populate the grid)
+// Seed mock users with Identity Matrix (one-time use)
 router.post('/users/seed', async (req, res) => {
   try {
     const mockUsers = [
-      { username: 'Dr. Rivera', email: 'rivera@mock.com', category: 'Medical', offers: 'Medical First Aid', needs: 'Web Development', password: 'mock' },
-      { username: 'Alex Smith', email: 'alex@mock.com', category: 'Maths', offers: 'Advanced Calculus', needs: 'Figma Prototyping', password: 'mock' },
-      { username: 'Mia Lin', email: 'mia@mock.com', category: 'Arts', offers: 'Digital Illustration', needs: 'React Basics', password: 'mock' },
-      { username: 'Marcus', email: 'marcus@mock.com', category: 'Maths', offers: 'Data Science', needs: 'System Architecture', password: 'mock' },
-      { username: 'Sarah', email: 'sarah@mock.com', category: 'Arts', offers: 'UI/UX Design', needs: 'Advanced CSS', password: 'mock' }
+      {
+        username: 'Dr. Rivera', email: 'rivera@mock.com', occupation: 'Physician',
+        offers: 'Medical First Aid, CPR Training', needs: 'Web Development',
+        rates: 50, availability: 'Mon-Wed, 6pm-9pm', portfolio: [], password: 'mock'
+      },
+      {
+        username: 'Alex Smith', email: 'alex@mock.com', occupation: 'Math Professor',
+        offers: 'Advanced Calculus, Linear Algebra', needs: 'Figma Prototyping',
+        rates: 40, availability: 'Tue/Thu, 4pm-7pm', portfolio: [], password: 'mock'
+      },
+      {
+        username: 'Mia Lin', email: 'mia@mock.com', occupation: 'Concept Artist',
+        offers: 'Digital Illustration, Character Design', needs: 'React Basics',
+        rates: 45, availability: 'Weekends, 10am-4pm', portfolio: [], password: 'mock'
+      },
+      {
+        username: 'Marcus', email: 'marcus@mock.com', occupation: 'Cloud Architect',
+        offers: 'AWS/GCP Architecture, Data Science', needs: 'System Architecture',
+        rates: 60, availability: 'Friday, 2pm-8pm', portfolio: [], password: 'mock'
+      }
     ];
 
     const batch = db.batch();
     const usersRef = db.collection('users');
 
     mockUsers.forEach(user => {
-      const docRef = usersRef.doc(); // Auto-generate ID
-      batch.set(docRef, { ...user, createdAt: new Date().toISOString() });
+      const docRef = usersRef.doc();
+      batch.set(docRef, { ...user, createdAt: new Date().toISOString(), balance: 0 });
     });
 
     await batch.commit();
-    res.json({ success: true, message: 'Database successfully seeded with users!' });
+    res.json({ success: true, message: 'Database seeded with Identity Matrix users!' });
   } catch (error) {
     console.error('Seed error:', error);
     res.status(500).json({ message: 'Internal Server Error' });
   }
 });
 
-// ==========================================
-// CONNECTIONS
-// ==========================================
-
-// Send a connection request
+// Send a connection request (Learn or Teach flow)
 router.post('/connections/request', async (req, res) => {
   try {
-    const { sender, receiver } = req.body;
-    if (!sender || !receiver) return res.status(400).json({ message: 'Sender and receiver required' });
+    const { sender, receiver, type } = req.body;
+    if (!sender || !receiver || !type) return res.status(400).json({ message: 'Missing fields' });
+
+    const message = type === 'learn' ? 'I want to learn your skill.' : 'I am available/interested to fulfill your need.';
 
     const connRef = db.collection('connections');
-    await connRef.add({
+    const docRef = await connRef.add({
       sender,
       receiver,
+      type, // 'learn' | 'teach'
       status: 'pending',
+      message,
       timestamp: new Date().toISOString()
     });
 
-    res.json({ success: true, message: 'Connection request sent' });
+    res.json({ success: true, message: 'Request sent successfully', id: docRef.id });
   } catch (error) {
     console.error('Connection Request Error:', error);
     res.status(500).json({ message: 'Internal Server Error' });
   }
 });
 
+
 // Get connection requests for a user
 router.get('/connections/:username', async (req, res) => {
   try {
     const { username } = req.params;
     const connRef = db.collection('connections');
-    
+
     // Get requests sent TO this user
     const snapshot = await connRef.where('receiver', '==', username).where('status', '==', 'pending').get();
-    
+
     const requests = [];
     snapshot.forEach(doc => requests.push({ id: doc.id, ...doc.data() }));
 
@@ -319,13 +240,91 @@ router.get('/connections/accepted/:username', async (req, res) => {
   }
 });
 
-// Accept connection request
+// Accept connection request (initiates payment requirement)
 router.post('/connections/accept/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    await db.collection('connections').doc(id).update({ status: 'accepted' });
-    res.json({ success: true, message: 'Request accepted' });
+    const connDoc = await db.collection('connections').doc(id).get();
+    if (!connDoc.exists) return res.status(404).json({ message: 'Request not found' });
+    
+    const data = connDoc.data();
+    // For 'learn', the sender (learner) pays. For 'teach', the receiver (need owner) pays.
+    const payer = data.type === 'learn' ? data.sender : data.receiver;
+
+    await connDoc.ref.update({ 
+      status: 'pending_payment',
+      payer,
+      acceptedAt: new Date().toISOString()
+    });
+
+    res.json({ success: true, message: 'Request accepted. Payment required from ' + payer });
   } catch (error) {
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+
+// Get pending payments for a user
+router.get('/connections/pending-payment/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const snap = await db.collection('connections')
+      .where('payer', '==', username)
+      .where('status', '==', 'pending_payment')
+      .get();
+
+    const pending = [];
+    snap.forEach(doc => pending.push({ id: doc.id, ...doc.data() }));
+    res.json(pending);
+  } catch (error) {
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+// Pay for a connection (internal credit transfer)
+router.post('/connections/pay/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connDoc = await db.collection('connections').doc(id).get();
+    if (!connDoc.exists) return res.status(404).json({ message: 'Connection not found' });
+
+    const data = connDoc.data();
+    const amount = 50; // Fixed session cost for now, could be dynamic based on rates
+
+    const payerRef = db.collection('users').where('username', '==', data.payer);
+    const receiverRef = db.collection('users').where('username', '==', (data.payer === data.sender ? data.receiver : data.sender));
+    
+    const payerSnap = await payerRef.get();
+    const receiverSnap = await receiverRef.get();
+
+    if (payerSnap.empty || receiverSnap.empty) return res.status(404).json({ message: 'Users not found' });
+
+    const payerDoc = payerSnap.docs[0];
+    const receiverDoc = receiverSnap.docs[0];
+
+    if (payerDoc.data().balance < amount) return res.status(400).json({ message: 'Insufficient credits' });
+
+    // Atomic update
+    await db.runTransaction(async (transaction) => {
+      transaction.update(payerDoc.ref, { balance: payerDoc.data().balance - amount });
+      transaction.update(receiverDoc.ref, { balance: (receiverDoc.data().balance || 0) + amount });
+      transaction.update(connDoc.ref, { status: 'accepted' });
+
+      // Log transactions
+      const ledger = db.collection('ledger');
+      transaction.set(ledger.doc(), {
+        from: data.payer,
+        to: receiverDoc.data().username,
+        amount,
+        type: 'session_payment',
+        description: `Session Payment: ${data.type.toUpperCase()}`,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    res.json({ success: true, message: 'Payment successful. Connection activated.' });
+  } catch (error) {
+    console.error('Payment Error:', error);
     res.status(500).json({ message: 'Internal Server Error' });
   }
 });
@@ -340,6 +339,74 @@ router.post('/connections/reject/:id', async (req, res) => {
     res.status(500).json({ message: 'Internal Server Error' });
   }
 });
+
+
+// ==========================================
+// IDENTITY MATRIX (PROFILE)
+// ==========================================
+
+// Get profile
+router.get('/profile/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const snap = await db.collection('users').where('username', '==', username).get();
+    if (snap.empty) return res.status(404).json({ message: 'User not found' });
+    res.json(snap.docs[0].data());
+  } catch (error) {
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+// Update profile
+router.post('/profile/update', async (req, res) => {
+  try {
+    const { username, occupation, offers, needs, rates, availability } = req.body;
+    const snap = await db.collection('users').where('username', '==', username).get();
+    if (snap.empty) return res.status(404).json({ message: 'User not found' });
+
+    await snap.docs[0].ref.update({
+      occupation, offers, needs, rates: Number(rates), availability
+    });
+
+    res.json({ success: true, message: 'Matrix updated successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+// Upload to Portfolio
+router.post('/profile/portfolio/upload', upload.single('file'), async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!req.file || !username) return res.status(400).json({ message: 'Missing file or username' });
+
+    const filename = `portfolios/${Date.now()}_${req.file.originalname}`;
+    const fileRef = bucket.file(filename);
+
+    const stream = fileRef.createWriteStream({ metadata: { contentType: req.file.mimetype } });
+    stream.on('error', () => res.status(500).json({ message: 'Upload failed' }));
+    stream.on('finish', async () => {
+      // makePublic() fails on buckets with Uniform Bucket-Level Access enabled.
+      // We assume the bucket is configured for public read or we use the direct URL.
+      const url = `https://storage.googleapis.com/${bucket.name}/${filename}`;
+      
+      const snap = await db.collection('users').where('username', '==', username).get();
+      if (!snap.empty) {
+        const userDoc = snap.docs[0];
+        const portfolio = userDoc.data().portfolio || [];
+        portfolio.push({ name: req.file.originalname, url, timestamp: Date.now() });
+        await userDoc.ref.update({ portfolio });
+      }
+
+      res.json({ success: true, url });
+    });
+
+    stream.end(req.file.buffer);
+  } catch (error) {
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
 
 // ==========================================
 // CHAT MESSAGING
@@ -361,10 +428,10 @@ router.post('/chat/upload', upload.single('media'), async (req, res) => {
     const stream = fileRef.createWriteStream({ metadata: { contentType: req.file.mimetype } });
     stream.on('error', () => res.status(500).json({ message: 'Upload failed' }));
     stream.on('finish', async () => {
-      await fileRef.makePublic();
       const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filename}`;
       res.json({ success: true, url: publicUrl, type: req.file.mimetype });
     });
+
     stream.end(req.file.buffer);
   } catch (error) {
     console.error('Media upload error:', error);
@@ -402,7 +469,13 @@ router.post('/chat/send', async (req, res) => {
       [`unreadFor_${receiver}`]: prevUnread + 1
     }, { merge: true });
 
-    res.json({ success: true, message: { id: docRef.id, ...newMsg } });
+    // Real-time notification via Socket.io
+    const io = req.app.get('io');
+    const msgWithId = { id: docRef.id, ...newMsg };
+    io.to(`chat_${receiver}`).emit('new-message', msgWithId);
+
+    res.json({ success: true, message: msgWithId });
+
   } catch (error) {
     console.error('Chat Send Error:', error);
     res.status(500).json({ message: 'Internal Server Error' });
@@ -495,6 +568,360 @@ router.get('/chat/:user1/:user2', async (req, res) => {
     res.status(500).json({ message: 'Internal Server Error' });
   }
 });
+
+// ==========================================
+// WALLET & TRANSACTIONS
+// ==========================================
+
+// Get user balance
+router.get('/wallet/balance/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const userDoc = await db.collection('users').where('username', '==', username).get();
+    if (userDoc.empty) return res.status(404).json({ message: 'User not found' });
+
+    const userData = userDoc.docs[0].data();
+    res.json({ balance: userData.balance || 0 });
+  } catch (error) {
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+// Get transaction history (Ledger)
+router.get('/wallet/history/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const snapshot = await db.collection('transactions')
+      .where('participants', 'array-contains', username)
+      .orderBy('timestamp', 'desc')
+      .get();
+
+    const history = [];
+    snapshot.forEach(doc => history.push({ id: doc.id, ...doc.data() }));
+    res.json(history);
+  } catch (error) {
+    console.error('Ledger error:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+// Sandbox Top-up (Add credits)
+router.post('/wallet/topup', async (req, res) => {
+  try {
+    const { username, amount } = req.body;
+    if (!username || !amount) return res.status(400).json({ message: 'Missing fields' });
+
+    const userRef = db.collection('users').where('username', '==', username);
+    const snap = await userRef.get();
+    if (snap.empty) return res.status(404).json({ message: 'User not found' });
+
+    const doc = snap.docs[0];
+    const newBalance = (doc.data().balance || 0) + Number(amount);
+
+    // Update balance
+    await doc.ref.update({ balance: newBalance });
+
+    // Record transaction
+    await db.collection('transactions').add({
+      type: 'topup',
+      participants: [username],
+      to: username,
+      amount: Number(amount),
+      timestamp: Date.now(),
+      status: 'completed',
+      description: 'Sandbox Top-up'
+    });
+
+    res.json({ success: true, balance: newBalance });
+  } catch (error) {
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+// Transfer credits
+router.post('/wallet/transfer', async (req, res) => {
+  try {
+    const { from, to, amount } = req.body;
+    if (!from || !to || !amount) return res.status(400).json({ message: 'Missing fields' });
+
+    // Verify sender
+    const fromSnap = await db.collection('users').where('username', '==', from).get();
+    if (fromSnap.empty) return res.status(404).json({ message: 'Sender not found' });
+    const fromDoc = fromSnap.docs[0];
+    const fromBalance = fromDoc.data().balance || 0;
+
+    if (fromBalance < amount) return res.status(400).json({ message: 'Insufficient balance' });
+
+    // Verify receiver
+    const toSnap = await db.collection('users').where('username', '==', to).get();
+    if (toSnap.empty) return res.status(404).json({ message: 'Receiver not found' });
+    const toDoc = toSnap.docs[0];
+
+    // Atomic-like update (simplified)
+    await fromDoc.ref.update({ balance: fromBalance - Number(amount) });
+    await toDoc.ref.update({ balance: (toDoc.data().balance || 0) + Number(amount) });
+
+    // Record transaction
+    await db.collection('transactions').add({
+      type: 'transfer',
+      participants: [from, to],
+      from,
+      to,
+      amount: Number(amount),
+      timestamp: Date.now(),
+      status: 'completed',
+      description: `Transfer to ${to}`
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+// ==========================================
+// STRIPE INTEGRATION
+// ==========================================
+
+// Create a Stripe Checkout Session
+router.post('/wallet/create-checkout-session', async (req, res) => {
+  try {
+    const { username, amount } = req.body;
+    if (!username || !amount) return res.status(400).json({ message: 'Missing fields' });
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `${amount} SkillSwap Credits`,
+            description: 'Equivalent exchange credits for SkillSwap community.',
+          },
+          unit_amount: amount * 100, // Amount in cents
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: `${req.headers.origin}/wallet?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.origin}/wallet`,
+      metadata: { username, amount }
+    });
+
+    res.json({ id: session.id, url: session.url });
+  } catch (error) {
+    console.error('Stripe Session Error:', error);
+    res.status(500).json({ message: 'Stripe integration error' });
+  }
+});
+
+// Verify Stripe Session (Simple alternative to Webhooks for local dev)
+router.get('/wallet/verify-session/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (session.payment_status === 'paid') {
+      const { username, amount } = session.metadata;
+
+      // Check if this session was already processed to prevent duplicate top-ups
+      const txRef = db.collection('transactions').where('stripeSessionId', '==', sessionId);
+      const txSnap = await txRef.get();
+
+      if (txSnap.empty) {
+        // Update balance
+        const userRef = db.collection('users').where('username', '==', username);
+        const userSnap = await userRef.get();
+        if (!userSnap.empty) {
+          const userDoc = userSnap.docs[0];
+          const newBalance = (userDoc.data().balance || 0) + Number(amount);
+          await userDoc.ref.update({ balance: newBalance });
+
+          // Record transaction
+          await db.collection('transactions').add({
+            type: 'topup',
+            participants: [username],
+            to: username,
+            amount: Number(amount),
+            timestamp: Date.now(),
+            status: 'completed',
+            description: 'Stripe Payment',
+            stripeSessionId: sessionId
+          });
+
+          return res.json({ success: true, amount, balance: newBalance });
+        }
+      } else {
+        return res.json({ success: true, message: 'Already processed' });
+      }
+    }
+    res.status(400).json({ success: false, message: 'Payment not completed' });
+  } catch (error) {
+    res.status(500).json({ message: 'Verification error' });
+  }
+});
+
+// ==========================================
+// CALENDAR & SCHEDULING
+// ==========================================
+
+// Create a meeting
+router.post('/meetings/create', async (req, res) => {
+  try {
+    const { creator, partner, start, end, title, description } = req.body;
+    if (!creator || !partner || !start || !end) return res.status(400).json({ message: 'Missing fields' });
+
+    const meeting = {
+      participants: [creator, partner].sort(),
+      creator,
+      partner,
+      start, // ISO string
+      end,   // ISO string
+      title,
+      description,
+      status: 'scheduled',
+      timestamp: Date.now()
+    };
+
+    const docRef = await db.collection('meetings').add(meeting);
+    res.json({ success: true, meeting: { id: docRef.id, ...meeting } });
+  } catch (error) {
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+// Get meetings for a user
+router.get('/meetings/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const snap = await db.collection('meetings')
+      .where('participants', 'array-contains', username)
+      .get();
+    
+    const meetings = [];
+    snap.forEach(doc => meetings.push({ id: doc.id, ...doc.data() }));
+    res.json(meetings);
+  } catch (error) {
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+// ==========================================
+// BACKGROUND JOB (SESSION CONTROL)
+// ==========================================
+// This checks for expired meetings and revokes connection access
+const sessionCleanupJob = async () => {
+  try {
+    const now = new Date().toISOString();
+    // Simplified query to avoid composite index requirements
+    const snap = await db.collection('meetings')
+      .where('status', '==', 'scheduled')
+      .get();
+
+    if (snap.empty) return;
+
+    for (const doc of snap.docs) {
+      const meeting = doc.data();
+      // Filter by end time in memory
+      if (meeting.end < now) {
+        // Revoke connection (set status to expired)
+        const [u1, u2] = meeting.participants;
+        const connSnap = await db.collection('connections')
+          .where('participants', 'array-contains', u1)
+          .get();
+        
+        for (const connDoc of connSnap.docs) {
+          const c = connDoc.data();
+          if (c.participants?.includes(u2)) {
+            await connDoc.ref.update({ status: 'expired' });
+          }
+        }
+
+        await doc.ref.update({ status: 'completed' });
+        console.log(`Meeting ${doc.id} completed. Revoked access between ${u1} and ${u2}.`);
+      }
+    }
+  } catch (e) {
+    console.error('Session cleanup error:', e);
+  }
+};
+
+
+// Aggregated user metrics for Overview/Dashboard
+router.get('/overview/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    // 1. Get Connections
+    const connsSnap = await db.collection('connections')
+      .where('participants', 'array-contains', username)
+      .where('status', '==', 'accepted')
+      .get();
+    const connectionsCount = connsSnap.size;
+
+    // 2. Get Transactions for Credits Earned/Spent
+    const txSnap = await db.collection('transactions')
+      .where('participants', 'array-contains', username)
+      .get();
+
+    let creditsEarned = 0;
+    let creditsSpent = 0;
+    let transactions = [];
+    txSnap.forEach(doc => transactions.push({ id: doc.id, ...doc.data() }));
+
+    // Sort in-memory to avoid composite index requirement
+    transactions.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    const recentActivity = [];
+    transactions.forEach(tx => {
+      if (tx.receiver === username) creditsEarned += tx.amount;
+      if (tx.sender === username) creditsSpent += tx.amount;
+      
+      if (recentActivity.length < 10) {
+        recentActivity.push({
+          id: tx.id,
+          type: 'transaction',
+          title: tx.sender === username ? `Sent credits to ${tx.receiver}` : `Received credits from ${tx.sender}`,
+          amount: tx.amount,
+          timestamp: tx.timestamp,
+          positive: tx.receiver === username
+        });
+      }
+    });
+
+
+    // 3. Get Meetings for Hours Spent
+    const meetSnap = await db.collection('meetings')
+      .where('participants', 'array-contains', username)
+      .where('status', '==', 'completed')
+      .get();
+
+    let totalMinutes = 0;
+    meetSnap.forEach(doc => {
+      const m = doc.data();
+      const start = new Date(m.start);
+      const end = new Date(m.end);
+      totalMinutes += (end - start) / (1000 * 60);
+    });
+    const hoursSpent = (totalMinutes / 60).toFixed(1);
+
+    res.json({
+      hoursSpent,
+      creditsEarned,
+      creditsSpent,
+      connectionsCount,
+      recentActivity
+    });
+
+  } catch (error) {
+    console.error('Overview error:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+
+// Run cleanup every 1 minute
+setInterval(sessionCleanupJob, 60000);
 
 export default router;
 
