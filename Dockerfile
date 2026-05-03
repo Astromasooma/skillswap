@@ -1,5 +1,5 @@
 # Stage 1: Build the Vite Frontend
-FROM node:20-alpine AS build
+FROM node:20-slim AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
@@ -7,10 +7,11 @@ COPY . .
 RUN npm run build
 
 # Stage 2: Setup the Express Backend
-FROM node:20-alpine
+FROM node:20-slim
 WORKDIR /app
 
 # Install backend dependencies
+# Slim image includes more build tools compatibility
 COPY server/package*.json ./server/
 RUN cd server && npm install --production
 
@@ -22,7 +23,6 @@ COPY --from=build /app/dist ./dist
 
 # Production environment
 ENV NODE_ENV=production
-# Google Cloud Run provides the PORT environment variable
 ENV PORT=8080
 EXPOSE 8080
 
