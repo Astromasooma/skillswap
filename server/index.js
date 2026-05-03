@@ -26,7 +26,8 @@ try {
   console.error('Firebase initialization error:', error.message);
 }
 
-export const db = getFirestore(); // Uses the (default) database unless configured otherwise
+export const db = getFirestore('skill-swap-db');
+
 
 export const bucket = getStorage().bucket();
 
