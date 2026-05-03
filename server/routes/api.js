@@ -67,8 +67,9 @@ router.post('/auth/signup', async (req, res) => {
     res.json({ success: true, message: 'User registered successfully', user: { id: docRef.id, username, email } });
   } catch (error) {
     console.error('Signup Error:', error);
-    res.status(500).json({ success: false, message: 'Internal Server Error' });
+    res.status(500).json({ success: false, message: `Signup Error: ${error.message}` });
   }
+
 });
 
 // Login Route
@@ -107,8 +108,9 @@ router.post('/auth/login', async (req, res) => {
     }
   } catch (error) {
     console.error('Login Error:', error);
-    res.status(500).json({ success: false, message: 'Internal Server Error' });
+    res.status(500).json({ success: false, message: `Login Error: ${error.message}` });
   }
+
 });
 
 // ==========================================
