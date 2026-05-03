@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
+
 import Stripe from 'stripe';
 import { db, bucket } from '../index.js';
 
